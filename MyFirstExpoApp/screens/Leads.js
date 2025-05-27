@@ -11,22 +11,9 @@ import {
   Pressable,
   Dimensions,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-
-const defaultLeads = [
-  { name: 'Kari Legros', contact: '+91 98765 43210', status: 'Follow-Up', qualification: 'Masters', interest: 'Mobile Development', source: 'Email Campaign', assignedTo: 'John Doe', updatedAt: 'May 22, 2025 11:02 PM' },
-  { name: 'Bridget Hayes', contact: '+91 91234 56789', status: 'Qualified', qualification: 'PhD', interest: 'Digital Marketing', source: 'Website', assignedTo: 'John Doe', updatedAt: 'May 21, 2025 11:34 PM' },
-  { name: 'Dr. Lawrence Cummings IV', contact: '+91 99887 76655', status: 'Qualified', qualification: 'High School', interest: 'Mobile Development', source: 'Cold Call', assignedTo: 'Jane Smith', updatedAt: 'May 20, 2025 3:06 PM' },
-  { name: 'Amos D’Amore', contact: '+91 78900 11223', status: 'Converted', qualification: 'Bachelors', interest: 'Data Science', source: 'Social Media', assignedTo: 'Jane Smith', updatedAt: 'May 19, 2025 3:03 PM' },
-  { name: 'Miss Norma Predovic', contact: '+91 80045 66778', status: 'Converted', qualification: 'High School', interest: 'Data Science', source: 'Website', assignedTo: 'Emily Davis', updatedAt: 'May 19, 2025 1:12 AM' },
-  { name: 'Raul Kub', contact: '+91 98765 11100', status: 'Qualified', qualification: 'Other', interest: 'Web Development', source: 'Social Media', assignedTo: 'Jane Smith', updatedAt: 'May 18, 2025 8:54 PM' },
-  { name: 'Rickey Swift', contact: '+91 90909 00011', status: 'New', qualification: 'Masters', interest: 'Mobile Development', source: 'Social Media', assignedTo: 'Robert Johnson', updatedAt: 'May 18, 2025 5:19 PM' },
-  { name: 'Ernestine Leannon', contact: '+91 98012 34567', status: 'New', qualification: 'High School', interest: 'Web Development', source: 'Website', assignedTo: 'Emily Davis', updatedAt: 'May 17, 2025 7:23 PM' },
-  { name: 'Ashley Ebert', contact: '+91 88888 99999', status: 'Follow-Up', qualification: 'PhD', interest: 'UI/UX Design', source: 'Social Media', assignedTo: 'Jane Smith', updatedAt: 'May 17, 2025 3:02 PM' },
-  { name: 'Kevin Miles', contact: '+91 91111 22222', status: 'Qualified', qualification: 'Bachelors', interest: 'AI', source: 'Cold Call', assignedTo: 'John Doe', updatedAt: 'May 16, 2025 11:11 AM' },
-];
+import { supabase } from '../supabase'; // <-- adjust path if needed
 
 const columns = [
   { key: 'name', label: 'Name', width: 150 },
@@ -50,27 +37,31 @@ const Leads = () => {
   const isFocused = useIsFocused();
 
   useEffect(() => {
-    const loadLeads = async () => {
-      try {
-        const stored = await AsyncStorage.getItem('leads');
-        const parsed = stored ? JSON.parse(stored) : [];
-        setLeadsList([...parsed, ...defaultLeads]);
-      } catch (error) {
-        console.error('Failed to load leads:', error);
+    const fetchLeads = async () => {
+      let query = supabase.from('leads').select('*').order('updatedAt', { ascending: false });
+      // Optionally filter by status
+      if (filters.status && filters.status !== 'All') {
+        query = query.eq('status', filters.status);
+      }
+      const { data, error } = await query;
+      if (error) {
+        console.error('Failed to fetch leads:', error);
+        setLeadsList([]);
+      } else {
+        setLeadsList(data || []);
       }
     };
     if (isFocused) {
-      loadLeads();
+      fetchLeads();
     }
-  }, [isFocused]);
+  }, [isFocused, filters.status]);
 
   const filteredLeads = leadsList.filter(lead =>
-    lead.name.toLowerCase().includes(search.toLowerCase())
+    lead.name && lead.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleApplyFilters = async (newFilters) => {
+  const handleApplyFilters = (newFilters) => {
     setFilters(newFilters);
-    await AsyncStorage.setItem('leadFilters', JSON.stringify(newFilters));
     setShowFilters(false);
   };
 
@@ -115,7 +106,7 @@ const Leads = () => {
 
           <FlatList
             data={filteredLeads}
-            keyExtractor={(item, index) => index.toString()}
+            keyExtractor={(item, index) => (item.id ? item.id : index.toString())}
             renderItem={({ item }) => (
               <View style={styles.row}>
                 {columns.map(col => (
@@ -151,7 +142,7 @@ const Leads = () => {
               flexGrow: 1,
               justifyContent: 'center',
               alignItems: 'center',
-              minWidth: Dimensions.get('window').width * 1.3, // Even wider modal
+              minWidth: Dimensions.get('window').width * 1.3,
             }}
             showsHorizontalScrollIndicator={true}
           >
@@ -346,7 +337,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 32,
     borderRadius: 18,
- // 100% of screen width
     minWidth: 200,
     maxWidth: 1200,
     minHeight: 240,

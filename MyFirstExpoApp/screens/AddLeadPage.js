@@ -10,10 +10,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../supabase'; // <-- adjust path if needed
 
 const qualificationOptions = [
   { label: 'High School', value: 'High School' },
@@ -87,27 +87,37 @@ const AddLeadPage = () => {
 
   const handleSubmit = async () => {
     const newLead = {
-      ...form,
+      name: form.name,
       contact: form.phone,
+      altPhone: form.altPhone,
+      email: form.email,
+      altEmail: form.altEmail,
+      status: form.status,
+      qualification: form.qualification,
       interest: form.interestField,
-      updatedAt: new Date().toLocaleString(),
+      source: form.source,
+      assignedTo: form.assignedTo,
+      jobInterest: form.jobInterest,
+      state: form.state,
+      city: form.city,
+      passoutYear: form.passoutYear,
+      heardFrom: form.heardFrom,
+      updatedAt: new Date().toISOString(),
     };
 
     try {
-      const existing = await AsyncStorage.getItem('leads');
-      const leads = existing ? JSON.parse(existing) : [];
-      leads.unshift(newLead);
-      await AsyncStorage.setItem('leads', JSON.stringify(leads));
+      const { error } = await supabase.from('leads').insert([newLead]);
+      if (error) throw error;
       Alert.alert('Success', 'Lead added');
       setForm(defaultForm); // Clear form
       navigation.navigate('Leads'); // Go back to leads page
     } catch (error) {
+      Alert.alert('Error', error.message);
       console.error('Error saving lead', error);
     }
   };
 
   return (
-   
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
@@ -300,7 +310,7 @@ const styles = StyleSheet.create({
     flex: 1, borderWidth: 1, borderColor: '#ccc',
     borderRadius: 8, padding: 10, marginHorizontal: 4, height: 50
   },
-   headerRow: { marginTop: 20, marginBottom: 10 }, // Add marginTop here
+  headerRow: { marginTop: 20, marginBottom: 10 },
   inputSingle: {
     borderWidth: 1, borderColor: '#ccc', borderRadius: 8,
     padding: 10, marginVertical: 8, height: 50
